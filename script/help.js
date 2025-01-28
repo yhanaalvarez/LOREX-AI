@@ -1,108 +1,57 @@
-module.exports.config = {
-  name: 'help',
-  version: '1.0.0',
-  role: 0,
-  hasPrefix: true,
-  aliases: ['info'],
-  description: "Beginner's guide",
-  usage: "Help [page] or [command]",
-  credits: 'Develeoper',
-};
-module.exports.run = async function({
-  api,
-  event,
-  enableCommands,
-  args,
-  Utils,
-  prefix
-}) {
-  const input = args.join(' ');
-  try {
-    const eventCommands = enableCommands[1].handleEvent;
-    const commands = enableCommands[0].commands;
-    if (!input) {
-      const pages = 20;
-      let page = 1;
-      let start = (page - 1) * pages;
-      let end = start + pages;
-      let helpMessage = `☄️ 𝗠𝗬 𝗔𝗩𝗔𝗜𝗟 𝗖𝗢𝗠𝗠𝗔𝗡𝗗 𝗟𝗜𝗦𝗧:\n\n`;
-      for (let i = start; i < Math.min(end, commands.length); i++) {
-        helpMessage += `\╭─❍
-➠ ${i + 1}.  ${prefix}${commands[i]} 
-╰───────────⟡ \n`;
-      }
-      helpMessage += '\n☄️ 𝗠𝗬 𝗘𝗩𝗘𝗡𝗧 𝗟𝗜𝗦𝗧:\n\n';
-      eventCommands.forEach((eventCommand, index) => {
-        helpMessage += `\╭─❍
-➠ ${index + 1}.  ${prefix}${eventCommand} 
-╰───────────⟡ \n`;
-      });
-      helpMessage += `\nPage ${page}/${Math.ceil(commands.length / pages)}. To view the next page, type '${prefix}help page number'. To view information about a specific command, type '${prefix}help command name'
+module.exports = {
+    config: {
+        name: "help",
+        aliases: ["commands", "menu"],
+        description: "Shows list of available commands",
+        usage: "[command name]",
+        cooldown: 5
+    },
+    run: async function({ api, event, args }) {
+        const { threadID, messageID } = event;
+        const commands = global.client.commands;
+        const prefix = global.config.Prefix;
 
-𝗧𝗛𝗜𝗦 𝗕𝗢𝗧 𝗜𝗦 𝗨𝗦𝗜𝗡𝗚 𝗧𝗛𝗜𝗦 𝗔𝗨𝗧𝗢𝗕𝗢𝗧:https://maori-autobotsite.onrender.com.`;
-      api.sendMessage(helpMessage, event.threadID, event.messageID);
-    } else if (!isNaN(input)) {
-      const page = parseInt(input);
-      const pages = 20;
-      let start = (page - 1) * pages;
-      let end = start + pages;
-      let helpMessage = `☄️ 𝗖𝗢𝗠𝗠𝗔𝗡𝗗 𝗟𝗜𝗦𝗧:\n\n`;
-      for (let i = start; i < Math.min(end, commands.length); i++) {
-        helpMessage += `\╭─❍
-➠ ${i + 1}.  ${prefix}${commands[i]} 
-╰───────────⟡ \n`;
-      }
-      helpMessage += '\n☄️ 𝗘𝗩𝗘𝗡𝗧 𝗟𝗜𝗦𝗧:\n\n';
-      eventCommands.forEach((eventCommand, index) => {
-        helpMessage += `\╭─❍
-➠ ${index + 1}.  ${prefix}${eventCommand} 
-╰───────────⟡ \n`;
-      });
-      helpMessage += `\nPage ${page} of ${Math.ceil(commands.length / pages)}`;
-      api.sendMessage(helpMessage, event.threadID, event.messageID);
-    } else {
-      const command = [...Utils.handleEvent, ...Utils.commands].find(([key]) => key.includes(input?.toLowerCase()))?.[1];
-      if (command) {
-        const {
-          name,
-          version,
-          role,
-          aliases = [],
-          description,
-          usage,
-          credits,
-          cooldown,
-          hasPrefix
-        } = command;
-        const roleMessage = role !== undefined ? (role === 0 ? '➛ Permission: user' : (role === 1 ? '➛ Permission: admin' : (role === 2 ? '➛ Permission: thread Admin' : (role === 3 ? '➛ Permission: super Admin' : '')))) : '';
-        const aliasesMessage = aliases.length ? `➛ Aliases: ${aliases.join(', ')}\n` : '';
-        const descriptionMessage = description ? `Description: ${description}\n` : '';
-        const usageMessage = usage ? `➛ Usage: ${usage}\n` : '';
-        const creditsMessage = credits ? `➛ Credits: ${credits}\n` : '';
-        const versionMessage = version ? `➛ Version: ${version}\n` : '';
-        const cooldownMessage = cooldown ? `➛ Cooldown: ${cooldown} second(s)\n` : '';
-        const message = ` 「 Command 」\n\n➛ Name: ${name}\n${versionMessage}${roleMessage}\n${aliasesMessage}${descriptionMessage}${usageMessage}${creditsMessage}${cooldownMessage}`;
-        api.sendMessage(message, event.threadID, event.messageID);
-      } else {
-        api.sendMessage('Command not found.', event.threadID, event.messageID);
-      }
+
+        if (args[0]) {
+            const command = commands.get(args[0].toLowerCase()) || 
+                          commands.find(cmd => cmd.config.aliases && cmd.config.aliases.includes(args[0].toLowerCase()));
+
+            if (!command) {
+                return api.sendMessage(`❌ Command "${args[0]}" not found.`, threadID, messageID);
+            }
+
+            let reply = `📌 Command Details:\n\n`;
+            reply += `Name: ${command.config.name}\n`;
+            reply += `Description: ${command.config.description || "No description provided"}\n`;
+            reply += `Usage: ${prefix}${command.config.name} ${command.config.usage || ""}\n`;
+            reply += `Cooldown: ${command.config.cooldown || 0} seconds\n`;
+            
+            if (command.config.aliases) {
+                reply += `Aliases: ${command.config.aliases.join(", ")}\n`;
+            }
+
+            return api.sendMessage(reply, threadID, messageID);
+        }
+
+        let helpMessage = "📜 Available Commands:\n\n";
+        
+        const categories = new Map();
+
+        commands.forEach(cmd => {
+            const category = cmd.config.category || "Uncategorized";
+            if (!categories.has(category)) {
+                categories.set(category, []);
+            }
+            categories.get(category).push(cmd.config.name);
+        });
+
+        for (const [category, cmds] of categories) {
+            helpMessage += `『 ${category} 』\n`;
+            helpMessage += `➤ ${cmds.join(", ")}\n\n`;
+        }
+
+        helpMessage += `\n💡 Type "${prefix}help <command>" for detailed information about a specific command.`;
+        
+        return api.sendMessage(helpMessage, threadID, messageID);
     }
-  } catch (error) {
-    console.log(error);
-  }
 };
-module.exports.handleEvent = async function({
-  api,
-  event,
-  prefix
-}) {
-  const {
-    threadID,
-    messageID,
-    body
-  } = event;
-  const message = prefix ? '🌐 System prefix: ' + prefix : "Sorry i don't have prefix";
-  if (body?.toLowerCase().startsWith('prefix')) {
-    api.sendMessage(message, threadID, messageID);
-  }
-}
