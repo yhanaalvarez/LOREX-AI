@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const login = require('./fb-chat-api/index');
+const login = require('./ws3-fca/index');
 const express = require('express');
 const app = express();
 const chalk = require('chalk');
@@ -113,9 +113,6 @@ app.use(express.json());
 const routes = [{
   path: '/',
   file: 'index.html'
-}, {
-  path: '/step_by_step_guide',
-  file: 'guide.html'
 }, {
   path: '/online_user',
   file: 'online.html'
